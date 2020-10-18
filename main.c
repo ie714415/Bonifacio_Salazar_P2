@@ -13,10 +13,13 @@
 #include "task.h"
 #include "FreeRTOS.h"
 #include "FreeRTOSConfig.h"
+#include "semphr.h"
 /* TODO: insert other definitions and declarations here. */
 #define BAUDRATE 115200
 #define RX 16
 #define TX 17
+#define HEADER_UART		0xAAAAAAAA
+
 
 typedef struct
 {
@@ -25,10 +28,13 @@ typedef struct
 	float y;
 	float z;
 } comm_msg_t;
+
+SemaphoreHandle_t tasks_sem;
 /*
  * @brief   Application entry point.
  */
 void init_sistem(void *parameters);
+void read_data(void *parameters);
 
 int main(void)
 {
@@ -41,9 +47,11 @@ int main(void)
     BOARD_InitDebugConsole();
 #endif
 
-    xTaskCreate(init_sistem, "init_sistem", 110, NULL, 1, NULL);
+    tasks_sem = xSemaphoreCreateBinary();
+    xTaskCreate(init_sistem, "init_sistem", 110, NULL, 2, NULL);
+    xTaskCreate(read_data, "read_data", 110, NULL, 1, NULL);
 
-      vTaskStartScheduler();
+     vTaskStartScheduler();
 
 
     /* Force the counter to be placed into memory. */
@@ -62,8 +70,9 @@ void init_sistem(void *parameters)
 {
 	freertos_uart_flag_t uart_succes = freertos_uart_fail;
 	freertos_i2c_flag_t bmi160_sucess = freertos_i2c_fail;
-	uint8_t msg[] = "UART and BMI160 configured\n";
-	uint8_t * data = msg[0];
+	uint8_t msg[] = "UART and BMI160 configured\n\r";
+	uint8_t data = msg[0];
+	uint8_t index = 0 ;
 
 	freertos_uart_config_t config;
 	config.baudrate = BAUDRATE;
@@ -77,11 +86,56 @@ void init_sistem(void *parameters)
 	bmi160_sucess = bmi160_init();
 	if((freertos_uart_sucess == uart_succes) && (freertos_i2c_sucess == bmi160_sucess))
 	{
-		while('\0' != &data)
+		while('\0' != data)
 		{
+			data = msg[index];
 			freertos_uart_send(freertos_uart0, &data, 1);
-			data++;
+			index++;
 		}
 	}
+	xSemaphoreGive(tasks_sem);
 	vTaskSuspend(NULL);
+}
+
+void read_data(void *parameters)
+{
+	xSemaphoreTake(tasks_sem, portMAX_DELAY);
+	bmi160_raw_data_t acc_data;
+	bmi160_raw_data_t gyro_data;
+
+	comm_msg_t data;
+	data.header = HEADER_UART;
+
+	MahonyAHRSEuler_t mahony_data;
+
+	uint32_t * pHeader = &(data.header);
+
+	uint8_t * pUART_data = pHeader;
+
+
+	for(;;)
+	{
+		acc_data = bmi160_get_data_accel();
+		gyro_data = bmi160_get_data_gyro();
+
+		mahony_data = MahonyAHRSupdateIMU((float)gyro_data.x, (float)gyro_data.y, (float)gyro_data.z, (float)acc_data.x, (float)acc_data.y, (float)acc_data.z);
+		data.x = mahony_data.roll;
+		data.y = mahony_data.pitch;
+		data.z = mahony_data.yaw;
+
+		//Enviar los datos a la interfaz
+		//Mandar header
+		//Mandar x
+		//Mandar y
+		//Mandar z
+		uint8_t i = 0;
+		while(i<5)
+		{
+			freertos_uart_send(freertos_uart0, pUART_data, 1);
+			pUART_data++;
+			i++;
+		}
+
+		vTaskDelay(pdMS_TO_TICKS(300));
+	}
 }
