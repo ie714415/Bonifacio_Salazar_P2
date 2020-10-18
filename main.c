@@ -15,11 +15,10 @@
 #include "FreeRTOSConfig.h"
 #include "semphr.h"
 /* TODO: insert other definitions and declarations here. */
-#define BAUDRATE 115200
-#define RX 16
-#define TX 17
+#define BAUDRATE 		115200
+#define RX 				16
+#define TX 				17
 #define HEADER_UART		0xAAAAAAAA
-
 
 typedef struct
 {
@@ -51,9 +50,7 @@ int main(void)
     xTaskCreate(init_sistem, "init_sistem", 110, NULL, 2, NULL);
     xTaskCreate(read_data, "read_data", 110, NULL, 1, NULL);
 
-     vTaskStartScheduler();
-
-
+    vTaskStartScheduler();
     /* Force the counter to be placed into memory. */
     volatile static int i = 0 ;
     /* Enter an infinite loop, just incrementing a counter. */
@@ -71,10 +68,8 @@ void init_sistem(void *parameters)
 	freertos_uart_flag_t uart_succes = freertos_uart_fail;
 	freertos_i2c_flag_t bmi160_sucess = freertos_i2c_fail;
 	uint8_t msg[] = "UART and BMI160 configured\n\r";
-	uint8_t data = msg[0];
-	uint8_t index = 0 ;
-
 	freertos_uart_config_t config;
+
 	config.baudrate = BAUDRATE;
 	config.pin_mux = kPORT_MuxAlt3;
 	config.port = freertos_uart_portB;
@@ -86,32 +81,25 @@ void init_sistem(void *parameters)
 	bmi160_sucess = bmi160_init();
 	if((freertos_uart_sucess == uart_succes) && (freertos_i2c_sucess == bmi160_sucess))
 	{
-		while('\0' != data)
-		{
-			data = msg[index];
-			freertos_uart_send(freertos_uart0, &data, 1);
-			index++;
-		}
+		freertos_uart_send(freertos_uart0, &msg[0], sizeof(msg));
 	}
 	xSemaphoreGive(tasks_sem);
+
 	vTaskSuspend(NULL);
 }
 
 void read_data(void *parameters)
 {
 	xSemaphoreTake(tasks_sem, portMAX_DELAY);
+
 	bmi160_raw_data_t acc_data;
 	bmi160_raw_data_t gyro_data;
-
-	comm_msg_t data;
-	data.header = HEADER_UART;
-
 	MahonyAHRSEuler_t mahony_data;
+	uint8_t * pUART_data;
+	comm_msg_t data;
 
-	uint32_t * pHeader = &(data.header);
-
-	uint8_t * pUART_data = pHeader;
-
+	data.header = HEADER_UART;
+	pUART_data = (uint8_t *) &data;
 
 	for(;;)
 	{
@@ -124,17 +112,7 @@ void read_data(void *parameters)
 		data.z = mahony_data.yaw;
 
 		//Enviar los datos a la interfaz
-		//Mandar header
-		//Mandar x
-		//Mandar y
-		//Mandar z
-		uint8_t i = 0;
-		while(i<5)
-		{
-			freertos_uart_send(freertos_uart0, pUART_data, 1);
-			pUART_data++;
-			i++;
-		}
+		freertos_uart_send(freertos_uart0, pUART_data, sizeof(data));
 
 		vTaskDelay(pdMS_TO_TICKS(300));
 	}
