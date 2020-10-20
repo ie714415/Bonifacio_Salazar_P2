@@ -45,6 +45,12 @@
 #define BMI160_GYRO_100HZ			0x08
 #define BMI160_GYRO_400HZ			0x0A
 
+#define BMI160_ACC_RANGE			0x41
+#define BMI160_8G_RANGE				0x08
+
+#define BMI160_GYRO_RANGE			0x43
+#define BMI160_500_RANGE			0x02
+
 
 typedef struct {
 	uint16_t x;
