@@ -35,6 +35,16 @@
 #define BMI160_ACC_DATA_Z_LSB		0x16
 #define BMI160_ACC_DATA_Z_MSB		0x17
 
+#define BMI160_ACC_CONF				0x40
+#define BMI160_ACC_800Hz			0x0B
+#define BMI160_ACC_100HZ			0x08
+#define BMI160_ACC_400HZ			0x0A
+
+#define BMI160_GYRO_CONF			0x42
+#define BMI160_GYRO_800Hz			0x0B
+#define BMI160_GYRO_100HZ			0x08
+#define BMI160_GYRO_400HZ			0x0A
+
 
 typedef struct {
 	uint16_t x;

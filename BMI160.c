@@ -38,6 +38,18 @@ freertos_i2c_flag_t bmi160_init(void)
 			bmi160_sucess = freertos_i2c_transmit(bmi160_i2c_config.i2c_number, &gyro_normal , 2, BMI160_SLAVE_ADDRESS);
 		}
 		vTaskDelay(pdMS_TO_TICKS(I2C_DELAY));
+		/*Initial configuration of bmi160 for 400Hz*/
+		uint8_t acc_freq[2] = {BMI160_ACC_CONF, BMI160_ACC_400HZ};
+		uint8_t gyro_freq[2] = {BMI160_GYRO_CONF, BMI160_GYRO_400HZ};;
+		/*Acc config*/
+		bmi160_sucess = freertos_i2c_transmit(bmi160_i2c_config.i2c_number, &acc_freq , 2, BMI160_SLAVE_ADDRESS);
+		vTaskDelay(pdMS_TO_TICKS(I2C_DELAY));
+		/*Gyro config*/
+		if(freertos_i2c_fail != bmi160_sucess)
+		{
+			bmi160_sucess = freertos_i2c_transmit(bmi160_i2c_config.i2c_number, &gyro_freq , 2, BMI160_SLAVE_ADDRESS);
+		}
+		vTaskDelay(pdMS_TO_TICKS(I2C_DELAY));
 	}
 	return bmi160_sucess;
 }
